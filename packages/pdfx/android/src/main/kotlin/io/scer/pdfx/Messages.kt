@@ -61,7 +61,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         result: Pigeon.Result<Pigeon.OpenReply>
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d('Open Document Coroutine Started')
+            Log.d("Open Document","Coroutine Started")
             val resultResponse = Pigeon.OpenReply()
             try {
                 val path = message.path
@@ -70,7 +70,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 resultResponse.id = document.id
                 resultResponse.pagesCount = document.pagesCount.toLong()
 
-                Log.d('Open Document Coroutine Ended')
+                Log.d("Open Document", "Coroutine Ended")
                 launch(Dispatchers.Main) {
                     // Switch back to the main thread to send the result
                     result.success(resultResponse)
@@ -179,7 +179,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         result: Pigeon.Result<Pigeon.RenderPageReply>
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d('Render Coroutine Started')
+            Log.d("Render", "Coroutine Started")
             val resultResponse = Pigeon.RenderPageReply()
             try {
                 val pageId = message.pageId!!
@@ -215,7 +215,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 resultResponse.width = pageImage.width.toLong()
                 resultResponse.height = pageImage.height.toLong()
 
-                Log.d('Render Coroutine Ended')
+                Log.d("Render", "Coroutine Ended")
                 launch(Dispatchers.Main) {
                     // Switch back to the main thread to send the result
                     result.success(resultResponse)

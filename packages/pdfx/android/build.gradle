@@ -3,7 +3,9 @@ version '1.0-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.6.10'
-    repositories {
+    ext.coroutines_version = '1.7.3'
+
+  repositories {
         google()
         mavenCentral()
     }
@@ -52,4 +54,5 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version"
 }
