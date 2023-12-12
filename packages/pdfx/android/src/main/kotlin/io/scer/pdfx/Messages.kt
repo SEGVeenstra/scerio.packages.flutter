@@ -25,6 +25,9 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.lang.RuntimeException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
@@ -57,24 +60,47 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         message: Pigeon.OpenPathMessage,
         result: Pigeon.Result<Pigeon.OpenReply>
     ) {
-        val resultResponse = Pigeon.OpenReply()
-        try {
-            val path = message.path
-            val documentRenderer = openFileDocument(File(path!!))
-            val document = documents.register(documentRenderer)
-            resultResponse.id = document.id
-            resultResponse.pagesCount = document.pagesCount.toLong()
-            result.success(resultResponse)
-        } catch (e: NullPointerException) {
-            result.error(PdfRendererException("pdf_renderer", "Need call arguments: path", null))
-        } catch (e: FileNotFoundException) {
-            result.error(PdfRendererException("pdf_renderer", "File not found", null))
-        } catch (e: IOException) {
-            result.error(PdfRendererException("pdf_renderer", "Can't open file", null))
-        } catch (e: CreateRendererException) {
-            result.error(PdfRendererException("pdf_renderer", "Can't create PDF renderer", null))
-        } catch (e: Exception) {
-            result.error(PdfRendererException("pdf_renderer", "Unknown error", null))
+        CoroutineScope(Dispatchers.IO).launch {
+            Log.d('Open Document Coroutine Started')
+            val resultResponse = Pigeon.OpenReply()
+            try {
+                val path = message.path
+                val documentRenderer = openFileDocument(File(path!!))
+                val document = documents.register(documentRenderer)
+                resultResponse.id = document.id
+                resultResponse.pagesCount = document.pagesCount.toLong()
+
+                Log.d('Open Document Coroutine Ended')
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the result
+                    result.success(resultResponse)
+                }
+            } catch (e: NullPointerException) {
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the error
+                    result.error(PdfRendererException("pdf_renderer", "Need call arguments: path", null))
+                }
+            } catch (e: FileNotFoundException) {
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the error
+                    result.error(PdfRendererException("pdf_renderer", "File not found", null))
+                }
+            } catch (e: IOException) {
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the error
+                    result.error(PdfRendererException("pdf_renderer", "Can't open file", null))
+                }
+            } catch (e: CreateRendererException) {
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the error
+                    result.error(PdfRendererException("pdf_renderer", "Can't create PDF renderer", null))
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the error
+                    result.error(PdfRendererException("pdf_renderer", "Unknown error", null))
+                }
+            }
         }
     }
 
@@ -152,44 +178,54 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         message: Pigeon.RenderPageMessage,
         result: Pigeon.Result<Pigeon.RenderPageReply>
     ) {
-        val resultResponse = Pigeon.RenderPageReply()
-        try {
-            val pageId = message.pageId!!
-            val width = message.width!!.toInt()
-            val height = message.height!!.toInt()
-            val format = message.format?.toInt() ?: 1 //0 Bitmap.CompressFormat.PNG
-            val forPrint = message.forPrint ?: false;
-            val backgroundColor = message.backgroundColor
-            val color = if (backgroundColor != null) Color.parseColor(backgroundColor) else Color.TRANSPARENT
+        CoroutineScope(Dispatchers.IO).launch {
+            Log.d('Render Coroutine Started')
+            val resultResponse = Pigeon.RenderPageReply()
+            try {
+                val pageId = message.pageId!!
+                val width = message.width!!.toInt()
+                val height = message.height!!.toInt()
+                val format = message.format?.toInt() ?: 1 // 0 Bitmap.CompressFormat.PNG
+                val forPrint = message.forPrint ?: false
+                val backgroundColor = message.backgroundColor
+                val color = if (backgroundColor != null) Color.parseColor(backgroundColor) else Color.TRANSPARENT
 
-            val crop = message.crop!!
-            val cropX = if (crop) message.cropX!!.toInt() else 0
-            val cropY = if (crop) message.cropY!!.toInt() else 0
-            val cropH = if (crop) message.cropHeight!!.toInt() else 0
-            val cropW = if (crop) message.cropWidth!!.toInt() else 0
+                val crop = message.crop!!
+                val cropX = if (crop) message.cropX!!.toInt() else 0
+                val cropY = if (crop) message.cropY!!.toInt() else 0
+                val cropH = if (crop) message.cropHeight!!.toInt() else 0
+                val cropW = if (crop) message.cropWidth!!.toInt() else 0
 
-            val quality = message.quality?.toInt() ?: 100
+                val quality = message.quality?.toInt() ?: 100
 
-            val page = pages.get(pageId)
+                val page = pages.get(pageId)
 
-            val tempOutFileExtension = when (format) {
-                0 -> "jpg"
-                1 -> "png"
-                2 -> "webp"
-                else -> "jpg"
+                val tempOutFileExtension = when (format) {
+                    0 -> "jpg"
+                    1 -> "png"
+                    2 -> "webp"
+                    else -> "jpg"
+                }
+                val tempOutFolder = File(binding.applicationContext.cacheDir, "pdf_renderer_cache")
+                tempOutFolder.mkdirs()
+                val tempOutFile = File(tempOutFolder, "$randomFilename.$tempOutFileExtension")
+
+                val pageImage = page.render(tempOutFile, width, height, color, format, crop, cropX, cropY, cropW, cropH, quality, forPrint)
+                resultResponse.path = pageImage.path
+                resultResponse.width = pageImage.width.toLong()
+                resultResponse.height = pageImage.height.toLong()
+
+                Log.d('Render Coroutine Ended')
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the result
+                    result.success(resultResponse)
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    // Switch back to the main thread to send the error
+                    result.error(PdfRendererException("pdf_renderer", "Unexpected error", e))
+                }
             }
-            val tempOutFolder = File(binding.applicationContext.cacheDir, "pdf_renderer_cache")
-            tempOutFolder.mkdirs()
-            val tempOutFile = File(tempOutFolder, "$randomFilename.$tempOutFileExtension")
-
-            val pageImage = page.render(tempOutFile, width, height, color, format, crop, cropX, cropY, cropW, cropH, quality, forPrint)
-            resultResponse.path = pageImage.path
-            resultResponse.width = pageImage.width.toLong()
-            resultResponse.height = pageImage.height.toLong()
-            result.success(resultResponse)
-
-        } catch (e: Exception) {
-            result.error(PdfRendererException("pdf_renderer", "Unexpected error", e))
         }
     }
 
